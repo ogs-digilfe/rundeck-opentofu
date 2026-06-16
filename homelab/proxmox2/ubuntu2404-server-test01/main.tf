@@ -1,0 +1,96 @@
+# main.tf
+# Proxmox VE 9.1 上に Ubuntu 24.04 Server (cloud-init) のVMを1台作成する。
+
+terraform {
+  required_version = ">= 1.6.0"
+
+  required_providers {
+    proxmox = {
+      source  = "bpg/proxmox"
+      version = "~> 0.66"
+    }
+  }
+}
+
+# ---- Provider 設定 -------------------------------------------------------
+provider "proxmox" {
+  endpoint  = var.proxmox_endpoint  # 例: "https://192.168.0.180:8006/"
+  api_token = var.proxmox_api_token # 例: "root@pam!tofu=xxxxxxxx-...."
+  insecure  = var.proxmox_insecure  # 自己署名証明書を許容 (検証環境向け)
+}
+
+# ---- VM 本体 -------------------------------------------------------------
+resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
+  name      = var.vm_name
+  node_name = var.proxmox_node
+  vm_id     = var.vm_id
+  tags      = ["ubuntu", "cloud-init", "opentofu"]
+
+  # Ubuntu 24.04 cloud-init テンプレートからクローンする
+  clone {
+    vm_id = var.template_vm_id
+    full  = true
+  }
+
+  # QEMU ゲストエージェント連携を有効化 (cloud image に qemu-guest-agent 同梱)
+  agent {
+    enabled = true
+  }
+
+  cpu {
+    cores = var.vm_cores
+    type  = "x86-64-v2-AES" # 別CPU世代のホストへの移行耐性を考慮した汎用モデル
+  }
+
+  memory {
+    dedicated = var.vm_memory # MiB
+  }
+
+  scsi_hardware = "virtio-scsi-single"
+
+  # ダウンロードした cloud image を起動ディスクとして取り込む。
+  # local-lvm はブロックストレージのため、取り込み時に raw へ変換される。
+  disk {
+    datastore_id = "local-lvm"
+    interface    = "scsi0"
+    size         = var.vm_disk_size # GiB (cloud image の元サイズより大きい値で拡張)
+    discard      = "on"
+    ssd          = true
+  }
+
+  network_device {
+    bridge = var.vm_bridge
+    model  = "virtio"
+  }
+
+  operating_system {
+    type = "l26" # Linux 2.6+ / 6.x kernel
+  }
+
+  # ---- cloud-init 設定 ----
+  initialization {
+    datastore_id = "local-lvm"
+
+    ip_config {
+      ipv4 {
+        address = "${var.vm_ip}/${var.vm_cidr_bits}"
+        gateway = var.vm_gateway
+      }
+    }
+
+    dns {
+      servers = [var.vm_dns]
+    }
+
+    user_account {
+      username = var.vm_username
+      keys = [
+        file("/opt/automation/keys/id_homelab_ogs_digilife.pub"),
+        file("/opt/automation/keys/id_homelab_rundeck.pub")
+      ]
+    }
+  }
+
+  # 起動順とホスト起動時の自動起動 (本番運用するなら on_boot = true)
+  on_boot = false
+}

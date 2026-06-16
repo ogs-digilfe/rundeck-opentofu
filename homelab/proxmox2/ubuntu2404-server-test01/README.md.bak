@@ -1,0 +1,86 @@
+# ubuntu2404-server-test01について
+
+## 概要
+
+本ディレクトリのopentofu構成ファイルは、以下の処理を実行する。
+
+- Ubuntu 24.04 Cloud Image を利用してProxmoxに仮想マシンを作成
+- cloud-init により初期設定を実施
+- 固定IPアドレスを設定
+- 初期管理ユーザを作成
+- ansible playbookを実行するため、Rundeck ホストの SSH 公開鍵(username: rundeck)を登録
+
+VM作成後は、Rundeck ホストから SSH 接続し、Ansible Playbook による作成した仮想マシンへの初期設定を実施することを前提としている。
+
+## ディレクトリ構成
+
+```text
+homelab/proxmox2/
+│  ubuntu2404-server-test01/
+│  ├── main.tf
+│  ├── variables.tf 
+│  ├── README.md 
+│  └── tfvars/ 
+│      ├── proxmox/ 
+│      │   └── proxmox2.tfvars 
+│      ├── vm/ 
+│      │    └── ubuntu2404-server-test01.tfvars
+│      └── secrets/ 
+│          └── ubuntu2404-server-test01.sh  
+└── secrets/ 
+    └── proxmox2.sh
+```
+
+```text
+補足
+`**/secrets/`フォルダは、下記で説明の環境変数設定ファイルであり、`.gitignore`で同期除外されている。
+ターミナルセッション接続時に自動設定したい場合は、環境変数設定のbashファイル(.sh)を作成し、~/.bsshrcで読み込ませるなどの対応が別途必要。
+```
+
+## 環境変数の設定
+
+以下のパラメータについては、環境変数を参照する構成ファイルとなっている。  
+このため、opentofuの構成ファイルを実行する際は、Rundeckホストに、以下の環境変数が事前に設定されていることを前提とする。
+
+### proxmoxのapiトークン
+
+proxmox2への接続は、proxmox2で発行したAPIトークンでアクセスする。  
+proxmoxでAPIトークンを発行し、Rundeckホストの環境変数`TF_VAR_proxmox_api_token`に、promox2で発行したAPIトークンをセットすること。  
+
+```bash
+# apiトークン型式
+# <proxmox user名>@<proxmox認証レルム>!<token id>=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# exportコマンドで設定する場合の例
+export TF_VAR_proxmox_api_token="adminuser@pam!rundeck=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+### 作成するVMの初期ユーザ
+
+opentofuを実行するホストの環境変数`TF_VAR_vm_username`に、作成するvmのユーザ名をセットすること。  
+
+```bash
+# exportコマンドで環境変数を設定する場合の例
+export TF_VAR_vm_username="adminuser"
+```
+
+※
+exportコマンドで設定した環境変数はターミナルセッションを切断するとフラッシュされるため、シェルスクリプトを作成して~/.bsshrcで読み込ませるなどする。
+
+## SSHについて
+
+本構成で作成するVM(`ubuntu2404-server-test01`)は、SSHパスワード認証を使用しない構成となっている。  
+VM作成時に cloud-init を利用して、Rundeckホストの公開鍵をVMの初期ユーザ()として登録する。
+
+前提:  
+登録する公開鍵:~/.ssh/id_rundeck.pub  
+Rundeckホストの初期ユーザ、およびSSH鍵はRundeckホスト構築時に作成済。  
+"~"は適宜Rundeckホスト初期ユーザのホームディレクトリに置き換えること。
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/id_rundeck -C "id_rundeck"
+```
+
+## 補足　imageファイルのソース
+
+`https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img`

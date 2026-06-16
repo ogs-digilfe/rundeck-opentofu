@@ -1,0 +1,34 @@
+# opentofu接続先プロバイダのapiトークンなどの機微情報を環境変数にセットするbashスクリプトファイル
+# 定型名ではないので、自身のフォルダ設計に合わせて変えること！！
+**/secrets/*.sh
+# スクリプトのサンプルはgitで管理する。
+!**/secrets/*.sh.sample
+
+# ---- OpenTofu / Terraform ----
+
+# Provider バイナリやモジュールキャッシュ (tofu init で再生成可能)
+**/.terraform/*
+
+# state ファイル (機微情報が平文で残るためコミットしない)
+*.tfstate
+*.tfstate.*
+
+# 実行計画の保存ファイル
+*.tfplan
+
+# クラッシュログ・一時上書き定義
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI 設定ファイル (環境ローカル設定)
+.tofurc
+tofu.rc
+.terraformrc
+terraform.rc
+
+# ---- バージョンロックは追跡する (コメントアウト=除外しない) ----
+# .terraform.lock.hcl
