@@ -85,9 +85,8 @@ resource "proxmox_virtual_environment_vm" "ubuntu_vm" {
     user_account {
       username = var.vm_username
       keys = [
-        trimspace(file("/opt/automation/keys/id_homelab_ogs-digilife.pub")),
-        trimspace(file("/opt/automation/keys/desktop-0i3anuu/ogs-digilife.pub")),
-        trimspace(file("/opt/automation/keys/id_homelab_rundeck.pub"))
+        file("/opt/automation/keys/id_homelab_ogs-digilife.pub"),
+        file("/opt/automation/keys/id_homelab_rundeck.pub")
       ]
     }
   }
