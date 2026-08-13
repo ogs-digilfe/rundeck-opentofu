@@ -17,6 +17,9 @@
 *.tfplan
 tfplan
 
+# エディタやマージツールなどが生成するバックアップファイル
+*.orig
+
 # クラッシュログ・一時上書き定義
 crash.log
 crash.*.log
